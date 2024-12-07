@@ -1,0 +1,11 @@
+name: saveloader
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pillow=10.0.1
+  - pywin32=306
+  - pip
+  - pip:
+    - mss==9.0.1 
