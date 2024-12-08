@@ -1,5 +1,5 @@
 # BalAtro-smartSL
-Python Script about quick save ＆ load of game balatro.  
+Python Script about quick save ＆ load of game Balatro.  
 
 # Balatro 存档管理器
 
@@ -15,9 +15,9 @@ Python Script about quick save ＆ load of game balatro.
 
 ## 环境要求
 
-- Windows 操作系统
-- Python 3.9 或更高版本
-- Anaconda/Miniconda (推荐)
+- Windows OS
+- Python 3.9 +
+- Anaconda/Miniconda
 
 ## 安装步骤
 
@@ -38,7 +38,7 @@ Python Script about quick save ＆ load of game balatro.
 
 - Windows 操作系统
 - Python 3.9 或更高版本
-- Anaconda/Miniconda (推荐)
+- Anaconda/Miniconda
 
 ## 安装步骤
 
@@ -64,13 +64,14 @@ pip install -r requirements.txt
 python save_loader.py
 ```
  游戏窗口标题（默认为 "Balatro"）
-   - 游戏存档路径（默认为 "%APPDATA%\\Balatro\\1\\save.jdr"）
+   - 游戏存档路径（默认为 "%APPDATA%\Balatro\1\save.jkr"）
 
-3. 基本操作：
+1. 基本操作：
    - 保存存档：点击"保存存档"按钮，输入存档名称
    - 读取存档：选择存档后点击"读取存档"按钮
    - 删除存档：选择存档后点击"删除存档"按钮
    - 预览存档：在左侧列表选择存档即可在右侧查看预览图
+   - 设置支持自定义监视窗口和存档文件路径  
 
 ## 文件说明
 
@@ -79,9 +80,12 @@ python save_loader.py
 - `saves/`: 存档文件夹
 - `screenshots/`: 截图文件夹
 
-## 注意事项
+## 注意事项  
+
+> **⚠️ 使用管理员身份运行 **
 
 1. 确保游戏窗口标题正确设置
-2. 存档前通过主菜单退出设置，不要点入开始游戏界面，否则要重复操作一次
-3. 建议定期清理不需要的存档  
+2. **确保存档前游戏窗口不是最小化**
+3. 读档前要通过设置主菜单退出到开始界面，先不要点开始游戏，否则要重复操作一次
+4. 建议定期清理不需要的存档  
 

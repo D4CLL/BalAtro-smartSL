@@ -1,50 +1,82 @@
-import sys
 import json
 import os
 from datetime import datetime
-from PIL import ImageGrab, Image
+from PIL import Image
+import ctypes
 import win32gui
 import win32ui
 import win32con
 import tkinter as tk
 from tkinter import ttk, messagebox
-import numpy as np
 import time
 
 def window_screenshot(hwnd):
-    """获取指定窗口的截图"""
+    """
+    使用 win32gui 和 win32ui 实现窗口截图。
+    支持捕获被覆盖的窗口，需要窗口处于活动状态。
+    :param hwnd: 窗口句柄
+    :return: PIL Image 对象
+    """
     try:
-        # 获取窗口完整区域（包括标题栏和边框）
-        window_rect = win32gui.GetWindowRect(hwnd)
-        # 获取客户区域
-        client_rect = win32gui.GetClientRect(hwnd)
-        # 获取客户区域在屏幕上的位置
-        client_left, client_top = win32gui.ClientToScreen(hwnd, (0, 0))
+        # 获取窗口的矩形区域
+        left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+        width = right - left
+        height = bottom - top
+
+        # 保存当前窗口位置信息
+        current_placement = win32gui.GetWindowPlacement(hwnd)
         
-        # 计算边框大小
-        border_left = client_left - window_rect[0]
-        border_top = client_top - window_rect[1]
-        border_right = window_rect[2] - (client_left + client_rect[2])
-        border_bottom = window_rect[3] - (client_top + client_rect[3])
+        # 将窗口置顶
+        win32gui.SetWindowPos(hwnd, win32con.HWND_TOPMOST, left, top, width, height, 
+                            win32con.SWP_SHOWWINDOW)
         
-        # 获取完整的窗口区域，包括边框
-        left = window_rect[0]
-        top = window_rect[1]
-        right = window_rect[2] + border_right  # 添加右边框
-        bottom = window_rect[3] + border_bottom  # 添加底部边框
-        
-        # 将窗口移到前台
-        win32gui.SetForegroundWindow(hwnd)
-        
-        # 稍微延迟以确保窗口显示
+        # 短暂延时确保窗口已置顶
         time.sleep(0.2)
-        
-        # 使用PIL直接截图整个窗口区域
-        screenshot = ImageGrab.grab((left, top, right, bottom))
-        
-        return screenshot
+
+        # 创建设备上下文
+        hwnd_dc = win32gui.GetWindowDC(hwnd)
+        mfc_dc = win32ui.CreateDCFromHandle(hwnd_dc)
+        save_dc = mfc_dc.CreateCompatibleDC()
+
+        # 创建位图对象
+        save_bitmap = win32ui.CreateBitmap()
+        save_bitmap.CreateCompatibleBitmap(mfc_dc, width, height)
+        save_dc.SelectObject(save_bitmap)
+
+        # 使用 PrintWindow 截图
+        result = ctypes.windll.user32.PrintWindow(hwnd, save_dc.GetSafeHdc(), 3)
+        if result == 0:
+            raise Exception("PrintWindow failed")
+
+        # 将位图转换为PIL Image
+        bmpinfo = save_bitmap.GetInfo()
+        bmpstr = save_bitmap.GetBitmapBits(True)
+        img = Image.frombuffer(
+            'RGB',
+            (bmpinfo['bmWidth'], bmpinfo['bmHeight']),
+            bmpstr, 'raw', 'BGRX', 0, 1)
+
+        # 清理资源
+        win32gui.DeleteObject(save_bitmap.GetHandle())
+        save_dc.DeleteDC()
+        mfc_dc.DeleteDC()
+        win32gui.ReleaseDC(hwnd, hwnd_dc)
+
+        # 恢复窗口原始位置
+        win32gui.SetWindowPos(hwnd, win32con.HWND_NOTOPMOST, left, top, width, height, 
+                            win32con.SWP_SHOWWINDOW)
+        win32gui.SetWindowPlacement(hwnd, current_placement)
+
+        return img
 
     except Exception as e:
+        # 确保在发生错误时也恢复窗口状态
+        try:
+            win32gui.SetWindowPos(hwnd, win32con.HWND_NOTOPMOST, left, top, width, height, 
+                                win32con.SWP_SHOWWINDOW)
+            win32gui.SetWindowPlacement(hwnd, current_placement)
+        except:
+            pass
         raise Exception(f"截图失败: {str(e)}")
 
 def list_windows():
@@ -68,8 +100,8 @@ class SaveManager:
         screen_height = self.root.winfo_screenheight()
         
         # 设置窗口大小
-        window_width = 1000  # 固定宽度
-        window_height = 600  # 固定高度
+        window_width = 1000
+        window_height = 600
         
         # 计算窗口位置，使其居中
         x = (screen_width - window_width) // 2
@@ -77,8 +109,6 @@ class SaveManager:
         
         # 设置窗口大小和位置
         self.root.geometry(f"{window_width}x{window_height}+{int(x)}+{int(y)}")
-        
-        # 禁止调整窗口大小
         self.root.resizable(False, False)
         
         # 固定存档记录在程序所在目录下
@@ -100,7 +130,7 @@ class SaveManager:
         
         # 加载存档列表
         self.load_save_list()
-        
+
     def create_widgets(self):
         # 左侧面板 - 固定宽度
         left_frame = ttk.Frame(self.root, width=200)
