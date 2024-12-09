@@ -8,16 +8,10 @@ Python Script about quick save ＆ load of game Balatro.
 ## 功能特点
 
 - 自动截取游戏窗口画面
-- 保存/读取游戏存档
+- 保存/读取游戏存档,支持自动/手动
 - 存档预览功能
-- 支持自定义游戏窗口标题和存档路径
+- 支持自定义监视窗口和存档文件路径
 - 存档文件统一管理
-
-## 环境要求
-
-- Windows  
-- Python 3.9 +
-- Anaconda/Miniconda
 
 ## 安装步骤
 
@@ -26,25 +20,11 @@ Python Script about quick save ＆ load of game Balatro.
 2. 使用 Conda 创建环境（推荐）：
 一个简单的 Balatro 游戏存档管理工具，支持存档备份、读取和预览功能。
 
-## 功能特点
-
-- 自动截取游戏窗口画面
-- 保存/读取游戏存档
-- 存档预览功能
-- 支持自定义游戏窗口标题和存档路径
-- 存档文件统一管理
-
 ## 环境要求
 
 - Windows 操作系统
 - Python 3.9 或更高版本
 - Anaconda/Miniconda
-
-## 安装步骤
-
-1. 克隆或下载本项目到本地
-
-2. 使用 Conda 创建环境（推荐）：.yml
 
 ## 激活环境
 conda activate saveloader
