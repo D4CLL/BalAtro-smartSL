@@ -17,8 +17,7 @@ Python Script about quick save ＆ load of game Balatro.
 
 1. 克隆或下载本项目到本地
 
-2. 使用 Conda 创建环境（推荐）：
-一个简单的 Balatro 游戏存档管理工具，支持存档备份、读取和预览功能。
+2. 使用 Conda 创建环境（推荐）：python saveloader.py 运行 
 
 ## 环境要求
 
