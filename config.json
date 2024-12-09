@@ -1,4 +1,6 @@
 {
     "window_title": "Balatro",
-    "game_save_path": "%APPDATA%\\Balatro\\1\\save.jkr"
+    "game_save_path": "%APPDATA%\\Balatro\\1\\save.jkr",
+    "auto_save_enabled": false,
+    "auto_save_interval": 5
 }
