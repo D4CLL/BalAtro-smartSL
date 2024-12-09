@@ -1,3 +1,4 @@
+import sys
 import json
 import os
 from datetime import datetime
@@ -116,12 +117,19 @@ class SaveManager:
         self.root.geometry(f"{window_width}x{window_height}+{int(x)}+{int(y)}")
         self.root.resizable(False, False)
         
+        # 获取当前目录
+        if getattr(sys, 'frozen', False):
+            # 如果是通过 PyInstaller 打包后的 .exe 文件
+            current_directory = os.path.dirname(sys.executable)
+        else:
+            # 如果是源代码环境下
+            current_directory = os.path.dirname(__file__)
         # 固定存档记录在程序所在目录下
-        self.saves_dir = os.path.join(os.path.dirname(__file__), "saves")
-        self.screenshots_dir = os.path.join(os.path.dirname(__file__), "screenshots")
+        self.saves_dir = os.path.join(current_directory, "saves")
+        self.screenshots_dir = os.path.join(current_directory, "screenshots")
         
         # 默认游戏存档路径
-        self.game_save_path = os.path.expandvars(r"%APPDATA%\Balatro\save.jkr")
+        self.game_save_path = os.path.expandvars(r"%APPDATA%\Balatro\1\save.jkr")
         
         # 自动存档相关属性
         self.auto_save_enabled = False
@@ -385,12 +393,12 @@ class SaveManager:
                 config = json.load(f)
                 self.window_title = config.get('window_title', "Balatro")
                 self.game_save_path = config.get('game_save_path', 
-                    os.path.expandvars(r"%APPDATA%\Balatro\save.jkr"))
+                    os.path.expandvars(r"%APPDATA%\Balatro\1\save.jkr"))
                 self.auto_save_enabled = config.get('auto_save_enabled', False)
                 self.auto_save_interval = config.get('auto_save_interval', 5)
         except FileNotFoundError:
             self.window_title = "Balatro"
-            self.game_save_path = os.path.expandvars(r"%APPDATA%\Balatro\save.jkr")
+            self.game_save_path = os.path.expandvars(r"%APPDATA%\Balatro\1\save.jkr")
             self.auto_save_enabled = False
             self.auto_save_interval = 5
             self.save_config()
