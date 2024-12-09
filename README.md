@@ -46,7 +46,7 @@ Python Script about quick save ＆ load of game Balatro.
 
 2. 使用 Conda 创建环境（推荐）：.yml
 
-# 激活环境
+## 激活环境
 conda activate saveloader
 ```
 
@@ -63,14 +63,14 @@ pip install -r requirements.txt
 ```bash
 python save_loader.py
 ```
- 游戏窗口标题（默认为 "Balatro"）
- 游戏存档路径（默认为 "%APPDATA%\Balatro\1\save.jkr"）
-保存存档：点击"保存存档"按钮，输入存档名称
-读取存档：选择存档后点击"读取存档"按钮
-删除存档：选择存档后点击"删除存档"按钮
-预览存档：在左侧列表选择存档即可在右侧查看预览图
-设置支持自定义监视窗口和存档文件路径  
-支持自动存档，最小间隔1min，设置可选修改  
+- 游戏窗口标题（默认为 "Balatro"）
+- 游戏存档路径（默认为 "%APPDATA%\Balatro\1\save.jkr"）
+- 保存存档：点击"保存存档"按钮，输入存档名称
+- 读取存档：选择存档后点击"读取存档"按钮
+- 删除存档：选择存档后点击"删除存档"按钮
+- 预览存档：在左侧列表选择存档即可在右侧查看预览图
+- 设置支持自定义监视窗口和存档文件路径  
+- 支持自动存档，最小间隔1min，设置可选修改  
 
 ## 文件说明
 
