@@ -4,8 +4,7 @@ import os
 from datetime import datetime
 from PIL import Image, ImageTk
 from ctypes import windll, byref, create_unicode_buffer, create_string_buffer, Structure, sizeof, WINFUNCTYPE
-from ctypes.wintypes import (BOOL, HWND, RECT, DWORD, LPARAM, WCHAR,
-                           UINT, POINT, WORD, LONG, ATOM)
+from ctypes.wintypes import (BOOL, HWND, RECT, DWORD, LPARAM, WCHAR, UINT, POINT, WORD, LONG, ATOM)
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -20,7 +19,7 @@ class BITMAPINFOHEADER(Structure):
         ("biSize", DWORD),
         ("biWidth", LONG),
         ("biHeight", LONG),
-        ("biPlanes", WORD),
+        ("biPlanes",WORD),
         ("biBitCount", WORD),
         ("biCompression", DWORD),
         ("biSizeImage", DWORD),
@@ -70,8 +69,8 @@ def window_screenshot(hwnd):
         # 计算尺寸增加
         width = rect.right - rect.left
         height = rect.bottom - rect.top
-        width_increase = int(width * 1)
-        height_increase = int(height * 1)
+        width_increase = int(width * 0.25)
+        height_increase = int(height * 0.25)
         
         # 保存当前窗口位置
         placement = WINDOWPLACEMENT()
@@ -460,12 +459,16 @@ class SaveManager:
                 frame_width = self.preview_frame.winfo_width() - 20  # 减去padding
                 frame_height = self.preview_frame.winfo_height() - 20  # 减去padding
                 
-                # 计算缩放比例，确保图片完全显示
-                scale = min(frame_width / img_width, frame_height / img_height)
-                
-                # 计算新尺寸
+                # 优先适应宽度
+                scale = frame_width / img_width
                 new_width = int(img_width * scale)
                 new_height = int(img_height * scale)
+                
+                # 如果高度超出，则改用高度缩放
+                if new_height > frame_height:
+                    scale = frame_height / img_height
+                    new_width = int(img_width * scale)
+                    new_height = int(img_height * scale)
                 
                 # 缩放图片
                 img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
