@@ -3,97 +3,188 @@ import json
 import os
 from datetime import datetime
 from PIL import Image, ImageTk
-import ctypes
-import win32gui
-import win32ui
-import win32con
+from ctypes import windll, byref, create_unicode_buffer, create_string_buffer, Structure, sizeof, WINFUNCTYPE
+from ctypes.wintypes import (BOOL, HWND, RECT, DWORD, LPARAM, WCHAR,
+                           UINT, POINT, WORD, LONG, ATOM)
 import tkinter as tk
 from tkinter import ttk, messagebox
-import time
+
+HWND_TOPMOST = -1
+HWND_NOTOPMOST = -2
+SWP_SHOWWINDOW = 0x0040
+DIB_RGB_COLORS = 0
+BI_RGB = 0
+
+class BITMAPINFOHEADER(Structure):
+    _fields_ = [
+        ("biSize", DWORD),
+        ("biWidth", LONG),
+        ("biHeight", LONG),
+        ("biPlanes", WORD),
+        ("biBitCount", WORD),
+        ("biCompression", DWORD),
+        ("biSizeImage", DWORD),
+        ("biXPelsPerMeter", LONG),
+        ("biYPelsPerMeter", LONG),
+        ("biClrUsed", DWORD),
+        ("biClrImportant", DWORD)
+    ]
+
+class BITMAPINFO(Structure):
+    _fields_ = [
+        ("bmiHeader", BITMAPINFOHEADER),
+        ("bmiColors", DWORD * 3)
+    ]
+
+class WINDOWPLACEMENT(Structure):
+    _fields_ = [
+        ("length", UINT),
+        ("flags", UINT),
+        ("showCmd", UINT),
+        ("ptMinPosition", POINT),
+        ("ptMaxPosition", POINT),
+        ("rcNormalPosition", RECT)
+    ]
+
+class WINDOWINFO(Structure):
+    _fields_ = [
+        ("cbSize", DWORD),
+        ("rcWindow", RECT),
+        ("rcClient", RECT),
+        ("dwStyle", DWORD),
+        ("dwExStyle", DWORD),
+        ("dwWindowStatus", DWORD),
+        ("cxWindowBorders", WORD),
+        ("cyWindowBorders", WORD),
+        ("atomWindowType", ATOM),
+        ("wCreatorVersion", WORD)
+    ]
 
 def window_screenshot(hwnd):
-    """ 使用 PrintWindow 截取完整的窗口内容 """
+    """使用 ctypes 实现的窗口截图功能"""
     try:
-        # 获取窗口的完整矩形，包括边框和标题栏
-        left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+        # 获取窗口位置和大小
+        rect = RECT()
+        windll.user32.GetWindowRect(hwnd, byref(rect))
         
-        # 不是balatro窗口计算增加的宽度和高度，适当延长边界
-        width_increase = int((right - left) * 0.25)  # 增加25%的宽度
-        height_increase = int((bottom - top) * 0.25)  # 增加25%的高度
+        # 计算尺寸增加
+        width = rect.right - rect.left
+        height = rect.bottom - rect.top
+        width_increase = int(width * 1)
+        height_increase = int(height * 1)
         
-        # 获取客户区的矩形
-        client_rect = win32gui.GetClientRect(hwnd)
-        client_width = client_rect[2]
-        client_height = client_rect[3]
-
-        # 保存当前窗口位置信息
-        current_placement = win32gui.GetWindowPlacement(hwnd)
-
-        # 将窗口置顶
-        win32gui.SetWindowPos(hwnd, win32con.HWND_TOPMOST, left, top,
-                              right - left + width_increase, bottom - top + height_increase, 
-                              win32con.SWP_SHOWWINDOW)
-
-        # 短暂延时确保窗口已置顶并渲染完成
-        time.sleep(1)
-
-        # 获取设备上下文（DC）
-        hwnd_dc = win32gui.GetWindowDC(hwnd)
-        mfc_dc = win32ui.CreateDCFromHandle(hwnd_dc)
-        save_dc = mfc_dc.CreateCompatibleDC()
-
-        # 创建位图对象
-        save_bitmap = win32ui.CreateBitmap()
-        save_bitmap.CreateCompatibleBitmap(mfc_dc, right - left + width_increase, bottom - top + height_increase)
-        save_dc.SelectObject(save_bitmap)
-
-        # 使用 PrintWindow 截图窗口内容到设备上下文
-        result = ctypes.windll.user32.PrintWindow(hwnd, save_dc.GetSafeHdc(), 3)
+        # 保存当前窗口位置
+        placement = WINDOWPLACEMENT()
+        placement.length = sizeof(WINDOWPLACEMENT)
+        windll.user32.GetWindowPlacement(hwnd, byref(placement))
+        
+        # 设置窗口位置
+        windll.user32.SetWindowPos(
+            hwnd, 
+            HWND_TOPMOST,
+            rect.left, rect.top,
+            width + width_increase,
+            height + height_increase,
+            SWP_SHOWWINDOW
+        )
+        
+        #time.sleep(0.2)
+        
+        # 创建DC和位图
+        hwnd_dc = windll.user32.GetWindowDC(hwnd)
+        mf_dc = windll.gdi32.CreateCompatibleDC(hwnd_dc)
+        bitmap = windll.gdi32.CreateCompatibleBitmap(
+            hwnd_dc,
+            width + width_increase,
+            height + height_increase
+        )
+        windll.gdi32.SelectObject(mf_dc, bitmap)
+        
+        # 截图
+        result = windll.user32.PrintWindow(hwnd, mf_dc, 3)
         if result == 0:
             raise Exception("PrintWindow failed")
-
-        # 将位图转换为 PIL 图像
-        bmpinfo = save_bitmap.GetInfo()
-        bmpstr = save_bitmap.GetBitmapBits(True)
-        img = Image.frombuffer(
-            'RGB', 
-            (bmpinfo['bmWidth'], bmpinfo['bmHeight']), 
-            bmpstr, 'raw', 'BGRX', 0, 1
+            
+        # 转换为PIL图像
+        bmp_info = BITMAPINFO()
+        bmp_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER)
+        bmp_info.bmiHeader.biWidth = width + width_increase
+        bmp_info.bmiHeader.biHeight = -(height + height_increase)
+        bmp_info.bmiHeader.biPlanes = 1
+        bmp_info.bmiHeader.biBitCount = 32
+        bmp_info.bmiHeader.biCompression = BI_RGB
+        
+        buffer_size = (width + width_increase) * (height + height_increase) * 4
+        buffer = create_string_buffer(buffer_size)
+        
+        windll.gdi32.GetDIBits(
+            mf_dc, bitmap, 0,
+            height + height_increase,
+            buffer,
+            byref(bmp_info),
+            DIB_RGB_COLORS
         )
-
+        
+        # 创建PIL图像
+        img = Image.frombuffer(
+            'RGBA',
+            (width + width_increase, height + height_increase),
+            buffer,
+            'raw',
+            'BGRA',
+            0,
+            1
+        )
+        
         # 清理资源
-        win32gui.DeleteObject(save_bitmap.GetHandle())
-        save_dc.DeleteDC()
-        mfc_dc.DeleteDC()
-        win32gui.ReleaseDC(hwnd, hwnd_dc)
-
-        # 恢复窗口原始位置
-        win32gui.SetWindowPos(hwnd, win32con.HWND_NOTOPMOST, left, top, right - left, bottom - top,
-                              win32con.SWP_SHOWWINDOW)
-        win32gui.SetWindowPlacement(hwnd, current_placement)
-
+        windll.gdi32.DeleteObject(bitmap)
+        windll.gdi32.DeleteDC(mf_dc)
+        windll.user32.ReleaseDC(hwnd, hwnd_dc)
+        
+        # 恢复窗口位置
+        windll.user32.SetWindowPos(
+            hwnd,
+            HWND_NOTOPMOST,
+            rect.left, rect.top,
+            width, height,
+            SWP_SHOWWINDOW
+        )
+        windll.user32.SetWindowPlacement(hwnd, byref(placement))
+        
         return img
-
+        
     except Exception as e:
-        # 确保在发生错误时恢复窗口状态
+        # 确保恢复窗口状态
         try:
-            win32gui.SetWindowPos(hwnd, win32con.HWND_NOTOPMOST, left, top, right - left, bottom - top,
-                                  win32con.SWP_SHOWWINDOW)
-            win32gui.SetWindowPlacement(hwnd, current_placement)
+            windll.user32.SetWindowPos(
+                hwnd,
+                HWND_NOTOPMOST,
+                rect.left, rect.top,
+                width, height,
+                SWP_SHOWWINDOW
+            )
+            windll.user32.SetWindowPlacement(hwnd, byref(placement))
         except:
             pass
         raise Exception(f"截图失败: {str(e)}")
 
-
 def list_windows():
-    """列出所有可见窗口的标题"""
+    """使用 ctypes 实现的窗口列表获取功能"""
     result = []
-    def enum_windows_callback(hwnd, _):
-        if win32gui.IsWindowVisible(hwnd):
-            title = win32gui.GetWindowText(hwnd)
-            if title:
-                result.append(title)
-    win32gui.EnumWindows(enum_windows_callback, None)
+    
+    def enum_windows_proc(hwnd, lParam):
+        if windll.user32.IsWindowVisible(hwnd):
+            length = windll.user32.GetWindowTextLengthW(hwnd)
+            if length:
+                buff = create_unicode_buffer(length + 1)
+                windll.user32.GetWindowTextW(hwnd, buff, length + 1)
+                result.append(buff.value)
+        return True
+    
+    WNDENUMPROC = WINFUNCTYPE(BOOL, HWND, LPARAM)
+    enum_proc = WNDENUMPROC(enum_windows_proc)
+    windll.user32.EnumWindows(enum_proc, 0)
+    
     return sorted(result)
 
 class SaveManager:
@@ -199,7 +290,7 @@ class SaveManager:
                 return
             
             # 获取目标窗口截图
-            hwnd = win32gui.FindWindow(None, self.window_title)
+            hwnd = windll.user32.FindWindowW(None, self.window_title)
             if hwnd:
                 try:
                     # 使用新的截图方法
@@ -260,7 +351,7 @@ class SaveManager:
                     return
                 
                 # 获取目标窗口截图
-                hwnd = win32gui.FindWindow(None, self.window_title)
+                hwnd = windll.user32.FindWindowW(None, self.window_title)
                 if hwnd:
                     try:
                         # 使用新的截图方法
