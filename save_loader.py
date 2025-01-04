@@ -19,7 +19,7 @@ class BITMAPINFOHEADER(Structure):
         ("biSize", DWORD),
         ("biWidth", LONG),
         ("biHeight", LONG),
-        ("biPlanes",WORD),
+        ("biPlanes", WORD),
         ("biBitCount", WORD),
         ("biCompression", DWORD),
         ("biSizeImage", DWORD),
@@ -242,6 +242,9 @@ class SaveManager:
         # 如果启用了自动存档，启动定时任务
         if self.auto_save_enabled:
             self.start_auto_save()
+        
+        # 添加一个变量来记录上一次的选择集
+        self.previous_selections = ()
 
     def create_widgets(self):
         # 左侧面板 - 固定宽度
@@ -249,8 +252,8 @@ class SaveManager:
         left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
         left_frame.pack_propagate(False)  # 防止frame被子组件压缩
         
-        # 存档列表
-        self.save_listbox = tk.Listbox(left_frame, width=25)
+        # 存档列表 - 保留多选功能，但移除右键菜单
+        self.save_listbox = tk.Listbox(left_frame, width=25, selectmode=tk.EXTENDED)
         self.save_listbox.pack(fill=tk.BOTH, expand=True, pady=(0, 5))
         self.save_listbox.bind('<<ListboxSelect>>', self.on_select_save)
         
@@ -421,10 +424,21 @@ class SaveManager:
     
     def delete_save(self):
         """删除存档"""
-        selection = self.save_listbox.curselection()
-        if selection:
-            save_name = self.save_listbox.get(selection[0])
-            if messagebox.askyesno("确认", f"确定要删除存档 {save_name} 吗？"):
+        selections = self.save_listbox.curselection()
+        if not selections:
+            return
+        
+        # 获取所有选中的存档名称
+        save_names = [self.save_listbox.get(idx) for idx in selections]
+        
+        # 确认删除
+        if len(save_names) == 1:
+            confirm_msg = f"确定要删除存档 {save_names[0]} 吗？"
+        else:
+            confirm_msg = f"确定要删除选中的 {len(save_names)} 个存档吗？"
+        
+        if messagebox.askyesno("确认", confirm_msg):
+            for save_name in save_names:
                 # 所有相关文件路径
                 save_path = os.path.join(self.saves_dir, f"{save_name}.json")  # 存档信息
                 screenshot_path = os.path.join(self.screenshots_dir, f"{save_name}.png")  # 截图
@@ -437,49 +451,71 @@ class SaveManager:
                     os.remove(screenshot_path)
                 if os.path.exists(game_save_backup):
                     os.remove(game_save_backup)
-                
-                # 刷新列表和预览
-                self.load_save_list()
-                self.preview_label.configure(image='')
-    
+            
+            # 刷新列表和预览
+            self.load_save_list()
+            self.preview_label.configure(image='')
+
     def on_select_save(self, event):
         """选择存档时显示预览"""
-        selection = self.save_listbox.curselection()
-        if selection:
-            save_name = self.save_listbox.get(selection[0])
-            screenshot_path = os.path.join(self.screenshots_dir, f"{save_name}.png")
+        selections = self.save_listbox.curselection()
+        if not selections:
+            # 清除预览
+            self.preview_label.configure(image='')
+            self.previous_selections = ()
+            return
+        
+        # 确定最新选中的项
+        current = None
+        
+        # 如果之前有选择，比较新旧选择集找出新增的选择
+        if self.previous_selections:
+            new_selections = set(selections) - set(self.previous_selections)
+            if new_selections:
+                current = max(new_selections)  # 获取新增选择中的最后一个
+        
+        # 如果没有找到新增的选择，使用当前选择集中的最后一个
+        if current is None:
+            current = selections[-1]
+        
+        # 更新上一次的选择记录
+        self.previous_selections = selections
+        
+        # 显示预览
+        save_name = self.save_listbox.get(current)
+        screenshot_path = os.path.join(self.screenshots_dir, f"{save_name}.png")
+        
+        if os.path.exists(screenshot_path):
+            # 加载原始图片
+            img = Image.open(screenshot_path)
+            img_width, img_height = img.size
             
-            if os.path.exists(screenshot_path):
-                # 加载原始图片
-                img = Image.open(screenshot_path)
-                img_width, img_height = img.size
-                
-                # 取预览区域大小
-                self.preview_frame.update()
-                frame_width = self.preview_frame.winfo_width() - 20  # 减去padding
-                frame_height = self.preview_frame.winfo_height() - 20  # 减去padding
-                
-                # 优先适应宽度
-                scale = frame_width / img_width
+            # 取预览区域大小
+            self.preview_frame.update()
+            frame_width = self.preview_frame.winfo_width() - 20  # 减去padding
+            frame_height = self.preview_frame.winfo_height() - 20  # 减去padding
+            
+            # 优先适应宽度
+            scale = frame_width / img_width
+            new_width = int(img_width * scale)
+            new_height = int(img_height * scale)
+            
+            # 如果高度超出，则改用高度缩放
+            if new_height > frame_height:
+                scale = frame_height / img_height
                 new_width = int(img_width * scale)
                 new_height = int(img_height * scale)
-                
-                # 如果高度超出，则改用高度缩放
-                if new_height > frame_height:
-                    scale = frame_height / img_height
-                    new_width = int(img_width * scale)
-                    new_height = int(img_height * scale)
-                
-                # 缩放图片
-                img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                
-                # 转换为PhotoImage以适配tkinter显示
-                photo = ImageTk.PhotoImage(img_resized)
-                
-                # 更新预览
-                self.preview_label.configure(image=photo)
-                self.preview_label.image = photo  # 保持引用
-    
+            
+            # 缩放图片
+            img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # 转换为PhotoImage以适配tkinter显示
+            photo = ImageTk.PhotoImage(img_resized)
+            
+            # 更新预览
+            self.preview_label.configure(image=photo)
+            self.preview_label.image = photo  # 保持引用
+
     def load_config(self):
         """加载配置"""
         try:
